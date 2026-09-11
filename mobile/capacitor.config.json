@@ -1,0 +1,10 @@
+{
+  "appId": "com.ashr3x.gametinder",
+  "appName": "GameTinder",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

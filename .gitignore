@@ -1,3 +1,15 @@
 __pycache__/
 *.pyc
 .env
+
+# Android build toolchain (portable JDK/SDK, ~1GB+) and app build output
+.android-toolchain/
+GameTinder.apk
+
+# Capacitor/Android project build artifacts and deps
+mobile/node_modules/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/capacitor-cordova-android-plugins/build/
