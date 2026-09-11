@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameTinder</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0d;
+    --surface: #17171b;
+    --surface-2: #202024;
+    --border: #2b2b31;
+    --text: #f5f5f7;
+    --text-dim: #8e8e96;
+    --accent: #8b5cf6;
+    --accent-text: #170f2e;
+    --font: 'Poppins', sans-serif;
+    --radius-lg: 26px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-weight: 500;
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #bg-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+
+  .ui {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 400px;
+    flex: 1;
+    min-height: 0;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  header {
+    text-align: center;
+    width: 100%;
+  }
+
+  .logo {
+    font-family: var(--font);
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .logo span { color: var(--accent); }
+
+  .tagline {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  .score-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    background: var(--surface);
+  }
+  .score-bar span { color: var(--text); font-weight: 700; }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-detail {
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+    display: inline-block;
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-detail:hover { border-color: var(--accent); color: var(--accent); }
+
+  .detail-box {
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .detail-genres {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .btn-next-img {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 5;
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text);
+    background: #000000aa;
+    backdrop-filter: blur(4px);
+    border: none;
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .btn-next-img:hover { background: #000000cc; }
+  .btn-next-img:disabled { opacity: 0.5; cursor: default; }
+
+  .img-counter {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 5;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    background: #000000aa;
+    backdrop-filter: blur(4px);
+    border-radius: 999px;
+    padding: 5px 10px;
+    display: none;
+  }
+
+  .card-stack {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .game-card {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.08s ease, opacity 0.08s ease;
+    box-shadow: 0 20px 50px -10px #00000080;
+  }
+
+  .game-card.fly-right {
+    animation: flyRight 0.35s ease forwards;
+  }
+  .game-card.fly-left {
+    animation: flyLeft 0.35s ease forwards;
+  }
+
+  @keyframes flyRight {
+    to { transform: translateX(130%) rotate(12deg); opacity: 0; }
+  }
+  @keyframes flyLeft {
+    to { transform: translateX(-130%) rotate(-12deg); opacity: 0; }
+  }
+
+  .cover-wrap {
+    width: 100%;
+    flex: 0 0 50%;
+    overflow: hidden;
+    position: relative;
+    background: #000;
+  }
+
+  .cover-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .cover-wrap::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 50px;
+    background: linear-gradient(transparent, var(--surface));
+  }
+
+  .card-body {
+    padding: 14px 18px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .game-name {
+    font-family: var(--font);
+    font-weight: 800;
+    font-size: 24px;
+    color: var(--text);
+    letter-spacing: -0.3px;
+    line-height: 1.15;
+  }
+
+  .game-dev {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+
+  .game-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .tag {
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    background: var(--surface-2);
+    padding: 4px 10px;
+    color: var(--text-dim);
+  }
+
+  .price-tag {
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 4px 10px;
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+
+  .rating-bar {
+    margin-top: auto;
+  }
+
+  .rating-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .bar-track {
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 999px;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+
+  .vote-row {
+    width: 100%;
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 16px;
+    font-family: var(--font);
+    font-weight: 800;
+    font-size: 18px;
+    cursor: pointer;
+    border: none;
+    border-radius: var(--radius-md);
+    transition: transform 0.08s ease, filter 0.12s;
+  }
+  .btn:active { transform: scale(0.96); }
+
+  .btn-nah {
+    color: var(--text-dim);
+    background: var(--surface-2);
+  }
+  .btn-nah:hover { color: var(--text); filter: brightness(1.2); }
+
+  .btn-yah {
+    color: var(--accent);
+    background: #8b5cf620;
+  }
+  .btn-yah:hover { filter: brightness(1.3); }
+
+  .hint {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    opacity: 0.6;
+    margin-top: -6px;
+  }
+
+  .liked-panel {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .liked-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dim);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .liked-list {
+    max-height: 90px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--surface-2) var(--surface);
+  }
+
+  .liked-item {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+  }
+  .liked-item:last-child { border-bottom: none; }
+  .liked-item span:first-child { color: var(--text); }
+
+  .empty-state {
+    padding: 18px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  .loading {
+    font-family: var(--font);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--text-dim);
+    text-align: center;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .flash-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 20;
+    transition: opacity 0.05s;
+  }
+  .flash-overlay.show { opacity: 1; }
+  .flash-green { background: #8b5cf626; }
+  .flash-red { background: #ffffff14; }
+
+  @media (max-width: 480px) {
+    .ui {
+      padding: 16px 12px;
+      gap: 10px;
+    }
+    .logo {
+      font-size: 26px;
+    }
+    .tagline {
+      font-size: 10px;
+    }
+    .score-bar {
+      font-size: 11px;
+      padding: 8px 12px;
+    }
+    .btn {
+      font-size: 15px;
+      padding: 12px;
+    }
+    .liked-header {
+      padding: 8px 12px;
+    }
+    .liked-list {
+      max-height: 70px;
+    }
+    .liked-item {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .game-name {
+      font-size: 20px;
+    }
+    .card-body {
+      padding: 12px 14px;
+      gap: 5px;
+    }
+  }
+
+  @media (max-height: 700px) {
+    .logo {
+      font-size: 24px;
+    }
+    .tagline {
+      display: none;
+    }
+    .ui {
+      gap: 8px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div class="ui">
+  <header>
+    <div class="logo">Game<span>Tinder</span></div>
+    <div class="tagline">Swipe your backlog into existence</div>
+  </header>
+
+  <div class="score-bar">
+    <div>Liked: <span id="liked-count">0</span></div>
+    <div>Skipped: <span id="skipped-count">0</span></div>
+    <div>Left: <span id="remaining-count">—</span></div>
+  </div>
+
+  <div class="card-stack" id="card-stack">
+    <div class="loading" id="loading-msg">LOADING GAMES...</div>
+  </div>
+
+  <div class="vote-row">
+    <button class="btn btn-nah" onclick="vote('nah')" id="btn-nah">✕ Nah</button>
+    <button class="btn btn-yah" onclick="vote('yah')" id="btn-yah">♥ Yah</button>
+  </div>
+  <div class="hint">Use ← / → arrow keys to vote</div>
+
+  <div class="liked-panel">
+    <div class="liked-header">
+      <span>Liked list</span>
+      <span id="liked-count-2">0 games</span>
+    </div>
+    <div class="liked-list" id="liked-list">
+      <div class="empty-state">No games liked yet</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Animated topographic contour background (Perlin noise + marching squares)
+  (function () {
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const noise = (() => {
+      const p = new Uint8Array(256);
+      for (let i = 0; i < 256; i++) p[i] = i;
+      let seed = 1337;
+      const rand = () => {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      };
+      for (let i = 255; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [p[i], p[j]] = [p[j], p[i]];
+      }
+      const perm = new Uint8Array(512);
+      for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+
+      const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+      const lerp = (t, a, b) => a + t * (b - a);
+      const grad = (hash, x, y, z) => {
+        const h = hash & 15;
+        const u = h < 8 ? x : y;
+        const v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
+        return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+      };
+
+      return (x, y, z) => {
+        const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
+        x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+        const u = fade(x), v = fade(y), w = fade(z);
+        const A = perm[X] + Y, AA = perm[A] + Z, AB = perm[A + 1] + Z;
+        const B = perm[X + 1] + Y, BA = perm[B] + Z, BB = perm[B + 1] + Z;
+        return lerp(w,
+          lerp(v, lerp(u, grad(perm[AA], x, y, z), grad(perm[BA], x - 1, y, z)),
+                  lerp(u, grad(perm[AB], x, y - 1, z), grad(perm[BB], x - 1, y - 1, z))),
+          lerp(v, lerp(u, grad(perm[AA + 1], x, y, z - 1), grad(perm[BA + 1], x - 1, y, z - 1)),
+                  lerp(u, grad(perm[AB + 1], x, y - 1, z - 1), grad(perm[BB + 1], x - 1, y - 1, z - 1))));
+      };
+    })();
+
+    // edge order: 0=top 1=right 2=bottom 3=left
+    const MS_LOOKUP = {
+      1: [[0, 3]], 2: [[0, 1]], 3: [[3, 1]], 4: [[1, 2]],
+      5: [[0, 3], [1, 2]], 6: [[0, 2]], 7: [[2, 3]], 8: [[2, 3]],
+      9: [[0, 2]], 10: [[0, 1], [2, 3]], 11: [[1, 2]], 12: [[3, 1]],
+      13: [[0, 1]], 14: [[0, 3]],
+    };
+    const LEVELS = [-0.5, -0.35, -0.2, -0.05, 0.1, 0.25, 0.4, 0.55];
+    const CELL = 24;
+    const FREQ = 0.01;
+
+    let width, height, cols, rows, field;
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      cols = Math.ceil(width / CELL) + 1;
+      rows = Math.ceil(height / CELL) + 1;
+      field = new Float32Array(cols * rows);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    function interp(a, b, level) {
+      return a === b ? 0.5 : (level - a) / (b - a);
+    }
+
+    function draw(t) {
+      for (let j = 0; j < rows; j++) {
+        for (let i = 0; i < cols; i++) {
+          field[j * cols + i] = noise(i * CELL * FREQ, j * CELL * FREQ, t);
+        }
+      }
+
+      ctx.fillStyle = '#0b0b0f';
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 1;
+
+      for (const level of LEVELS) {
+        ctx.beginPath();
+        for (let j = 0; j < rows - 1; j++) {
+          for (let i = 0; i < cols - 1; i++) {
+            const x0 = i * CELL, y0 = j * CELL;
+            const a = field[j * cols + i];
+            const b = field[j * cols + i + 1];
+            const c = field[(j + 1) * cols + i + 1];
+            const d = field[(j + 1) * cols + i];
+
+            let caseIndex = 0;
+            if (a > level) caseIndex |= 1;
+            if (b > level) caseIndex |= 2;
+            if (c > level) caseIndex |= 4;
+            if (d > level) caseIndex |= 8;
+            if (caseIndex === 0 || caseIndex === 15) continue;
+
+            const pts = [
+              [x0 + CELL * interp(a, b, level), y0],           // top
+              [x0 + CELL, y0 + CELL * interp(b, c, level)],    // right
+              [x0 + CELL * interp(d, c, level), y0 + CELL],    // bottom
+              [x0, y0 + CELL * interp(a, d, level)],           // left
+            ];
+
+            for (const [e1, e2] of MS_LOOKUP[caseIndex]) {
+              ctx.moveTo(pts[e1][0], pts[e1][1]);
+              ctx.lineTo(pts[e2][0], pts[e2][1]);
+            }
+          }
+        }
+        ctx.stroke();
+      }
+    }
+
+    let time = 0;
+    function animate() {
+      time += 0.0015;
+      draw(time);
+      requestAnimationFrame(animate);
+    }
+    animate();
+  })();
+
+  // Game state
+  let games = [];
+  let current = 0;
+  let liked = JSON.parse(localStorage.getItem('gametinder_liked') || '[]');
+  let skipped = 0;
+  let nextPage = 0;
+  let noMoreGames = false;
+  let loadPromise = null;
+  const seenAppids = new Set();
+  const likedAppids = new Set(liked.map(g => g.appid));
+
+  function saveLiked() {
+    localStorage.setItem('gametinder_liked', JSON.stringify(liked));
+  }
+
+  function getRating(pos, neg) {
+    const total = pos + neg;
+    if (!total) return 0;
+    return Math.round((pos / total) * 100);
+  }
+
+  function formatPrice(price) {
+    if (!price || price === '0') return 'FREE';
+    return '$' + (parseInt(price) / 100).toFixed(2);
+  }
+
+  function buildCard(game) {
+    const rating = getRating(game.positive, game.negative);
+    const card = document.createElement('div');
+    card.className = 'game-card';
+    card.id = 'current-card';
+
+    card.innerHTML = `
+      <div class="flash-overlay flash-green" id="flash-green"></div>
+      <div class="flash-overlay flash-red" id="flash-red"></div>
+      <div class="cover-wrap">
+        <img id="cover-img-${game.appid}" src="https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}/header.jpg"
+             onerror="this.src=''" alt="${game.name}">
+        <button class="btn-next-img" id="next-img-${game.appid}" onclick="nextImage(${game.appid})">Next ▶</button>
+        <div class="img-counter" id="img-counter-${game.appid}"></div>
+      </div>
+      <div class="card-body">
+        <div class="btn-row">
+          <button class="btn-detail" onclick="loadDetails(${game.appid})">+ More details</button>
+          <a class="btn-detail btn-steam" href="https://store.steampowered.com/app/${game.appid}" target="_blank" rel="noopener noreferrer">Steam page ↗</a>
+        </div>
+        <div class="detail-box" id="detail-${game.appid}" style="display:none"></div>
+        <div class="game-name">${game.name}</div>
+        <div class="game-dev">${game.developer || 'Unknown dev'}</div>
+        <div class="game-meta">
+          <span class="price-tag">${formatPrice(game.price)}</span>
+          <span class="tag">CCU: ${(game.ccu || 0).toLocaleString()}</span>
+          <span class="tag">${game.owners || '?'} owners</span>
+        </div>
+        <div class="rating-bar">
+          <div class="rating-label">Approval rating: ${rating}%</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${rating}%"></div></div>
+        </div>
+      </div>
+    `;
+    return card;
+  }
+
+  const gameDataCache = {};
+  const imgState = {};
+
+  async function fetchGameData(appid) {
+    if (gameDataCache[appid]) return gameDataCache[appid];
+    const res = await fetch(`/game/${appid}`);
+    const data = await res.json();
+    gameDataCache[appid] = data;
+    return data;
+  }
+
+  async function loadDetails(appid) {
+    const box = document.getElementById('detail-' + appid);
+    if (!box) return;
+
+    if (box.style.display === 'block') {
+      box.style.display = 'none';
+      return;
+    }
+
+    box.style.display = 'block';
+    box.textContent = 'Loading...';
+    try {
+      const data = await fetchGameData(appid);
+      const genres = (data.genres || []).map(g => `<span class="tag">${g}</span>`).join('');
+      box.innerHTML = `
+        <div>${data.description || 'No description available.'}</div>
+        <div class="detail-genres">${genres}</div>
+      `;
+    } catch (e) {
+      box.textContent = 'Failed to load details.';
+    }
+  }
+
+  async function nextImage(appid) {
+    const img = document.getElementById('cover-img-' + appid);
+    const counter = document.getElementById('img-counter-' + appid);
+    const btn = document.getElementById('next-img-' + appid);
+    if (!img) return;
+
+    let state = imgState[appid];
+    if (!state) {
+      state = imgState[appid] = {
+        images: [`https://cdn.akamai.steamstatic.com/steam/apps/${appid}/header.jpg`],
+        index: 0,
+        loaded: false,
+      };
+    }
+
+    if (!state.loaded) {
+      if (btn) btn.disabled = true;
+      try {
+        const data = await fetchGameData(appid);
+        if (data.screenshots && data.screenshots.length) {
+          state.images = state.images.concat(data.screenshots);
+        }
+      } catch (e) {
+        // fall back to just the header image
+      }
+      state.loaded = true;
+      if (btn) btn.disabled = false;
+    }
+
+    if (state.images.length <= 1) return;
+
+    state.index = (state.index + 1) % state.images.length;
+    img.src = state.images[state.index];
+    if (counter) {
+      counter.textContent = `${state.index + 1}/${state.images.length}`;
+      counter.style.display = 'block';
+    }
+  }
+
+  function updateScoreboard() {
+    document.getElementById('liked-count').textContent = liked.length;
+    document.getElementById('liked-count-2').textContent = liked.length + ' games';
+    document.getElementById('skipped-count').textContent = skipped;
+    document.getElementById('remaining-count').textContent = Math.max(0, games.length - current);
+  }
+
+  function updateLikedList() {
+    const list = document.getElementById('liked-list');
+    if (!liked.length) {
+      list.innerHTML = '<div class="empty-state">No games liked yet</div>';
+      return;
+    }
+    list.innerHTML = liked.map(g =>
+      `<div class="liked-item"><span>${g.name}</span><span>${formatPrice(g.price)}</span></div>`
+    ).join('');
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function showCard() {
+    const stack = document.getElementById('card-stack');
+    stack.innerHTML = '';
+
+    if (games.length - current <= 15 && !noMoreGames) {
+      loadMoreGames(); // prefetch in background
+    }
+
+    if (current >= games.length) {
+      if (noMoreGames) {
+        stack.innerHTML = `<div class="loading">All done — ${liked.length} games liked</div>`;
+        document.getElementById('btn-nah').disabled = true;
+        document.getElementById('btn-yah').disabled = true;
+        return;
+      }
+      stack.innerHTML = `<div class="loading">Loading more games...</div>`;
+      loadMoreGames().then(showCard);
+      return;
+    }
+    stack.appendChild(buildCard(games[current]));
+    updateScoreboard();
+  }
+
+  function flash(type) {
+    const el = document.getElementById(type === 'yah' ? 'flash-green' : 'flash-red');
+    if (!el) return;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 120);
+  }
+
+  function vote(type) {
+    if (current >= games.length) return;
+    const card = document.getElementById('current-card');
+    if (!card) return;
+
+    flash(type);
+
+    if (type === 'yah') {
+      card.classList.add('fly-right');
+      liked.push(games[current]);
+      likedAppids.add(games[current].appid);
+      saveLiked();
+    } else {
+      card.classList.add('fly-left');
+      skipped++;
+    }
+
+    current++;
+    updateLikedList();
+    setTimeout(showCard, 320);
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'y') vote('yah');
+    if (e.key === 'ArrowLeft' || e.key === 'n') vote('nah');
+  });
+
+  // Fetch from Flask backend, paging through SteamSpy so the deck never runs dry
+  function loadMoreGames() {
+    if (noMoreGames) return Promise.resolve();
+    if (loadPromise) return loadPromise;
+
+    loadPromise = (async () => {
+      const res = await fetch(`/games?page=${nextPage}`);
+      const data = await res.json();
+      const batch = Object.values(data);
+      nextPage++;
+
+      if (!batch.length) {
+        noMoreGames = true;
+        return;
+      }
+
+      const fresh = batch.filter(g => g.appid && !seenAppids.has(g.appid) && !likedAppids.has(g.appid));
+      fresh.forEach(g => seenAppids.add(g.appid));
+      games = games.concat(fresh);
+    })().finally(() => { loadPromise = null; });
+
+    return loadPromise;
+  }
+
+  async function loadGames() {
+    try {
+      await loadMoreGames();
+      document.getElementById('loading-msg')?.remove();
+      showCard();
+      updateLikedList();
+    } catch (e) {
+      document.getElementById('card-stack').innerHTML =
+        '<div class="loading">Error loading games</div>';
+    }
+  }
+
+  loadGames();
+</script>
+</body>
+</html>
