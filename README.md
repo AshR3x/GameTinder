@@ -54,3 +54,8 @@ http://<your-computer's-LAN-IP>:5000
 - SteamSpy API
 - Steam Store API
 - Vanilla HTML/CSS/JS (Canvas 2D for the background animation)
+- Capacitor (Android app wrapper — see `mobile/`)
+
+## Credits
+
+- Android app icon: flame icon from [Flaticon](https://www.flaticon.com/free-icon/fire_16763459), used under Flaticon's free license (attribution required).

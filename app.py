@@ -28,5 +28,29 @@ def game_details(appid):
         'screenshots': [s['path_full'] for s in game.get('screenshots', [])]
     })
 
+@app.route('/game/<int:appid>/reviews')
+def game_reviews(appid):
+    res = requests.get(
+        f"https://store.steampowered.com/appreviews/{appid}",
+        params={
+            'json': 1,
+            'num_per_page': 5,
+            'filter': 'recent',
+            'language': 'english',
+            'purchase_type': 'all',
+        }
+    )
+    data = res.json()
+    reviews = [
+        {
+            'review': r.get('review', ''),
+            'voted_up': r.get('voted_up', True),
+            'playtime_hours': round(r.get('author', {}).get('playtime_forever', 0) / 60, 1),
+            'author_name': r.get('author', {}).get('personaname') or 'Anonymous',
+        }
+        for r in data.get('reviews', [])
+    ]
+    return jsonify({'reviews': reviews})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

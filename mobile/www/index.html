@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>GameTinder</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -56,7 +56,7 @@
     max-width: 400px;
     flex: 1;
     min-height: 0;
-    padding: 24px 16px;
+    padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -98,6 +98,8 @@
     background: var(--surface);
   }
   .score-bar span { color: var(--text); font-weight: 700; }
+  .skipped-stat { cursor: pointer; transition: color 0.15s; }
+  .skipped-stat:hover { color: var(--text); }
 
   .btn-row {
     display: flex;
@@ -134,6 +136,52 @@
     gap: 6px;
     flex-wrap: wrap;
     margin-top: 8px;
+  }
+
+  .review-box {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .review-item {
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .review-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .review-author {
+    color: var(--text);
+  }
+
+  .review-vote {
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .review-vote.up { color: var(--accent); }
+  .review-vote.down { color: var(--text-dim); }
+
+  .review-playtime {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .review-text {
+    color: var(--text-dim);
+    line-height: 1.5;
+    white-space: pre-line;
   }
 
   .img-nav {
@@ -556,7 +604,7 @@
 
   @media (max-width: 480px) {
     .ui {
-      padding: 16px 12px;
+      padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
       gap: 10px;
     }
     .logo {
@@ -617,7 +665,7 @@
 
   <div class="score-bar">
     <div>Liked: <span id="liked-count">0</span></div>
-    <div>Skipped: <span id="skipped-count">0</span></div>
+    <div class="skipped-stat" onclick="resetSkipped()" title="Click to un-skip all games">Skipped: <span id="skipped-count">0</span></div>
     <div>Left: <span id="remaining-count">—</span></div>
   </div>
 
@@ -784,6 +832,17 @@
   // Flask proxy at /games and /game/<appid> instead.
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 
+  // Draw edge-to-edge (behind the status bar/notch) with light icons on our dark theme,
+  // instead of leaving a plain default-colored status bar strip above the app.
+  if (isNative) {
+    const StatusBar = window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+    if (StatusBar) {
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+      StatusBar.setStyle({ style: 'LIGHT' }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: '#00000000' }).catch(() => {});
+    }
+  }
+
   async function fetchGamesPage(page) {
     if (!isNative) {
       const res = await fetch(`/games?page=${page}`);
@@ -812,19 +871,55 @@
     };
   }
 
+  async function fetchGameReviews(appid) {
+    if (!isNative) {
+      const res = await fetch(`/game/${appid}/reviews`);
+      return res.json();
+    }
+    const url = `https://store.steampowered.com/appreviews/${appid}?` + new URLSearchParams({
+      json: 1,
+      num_per_page: 5,
+      filter: 'recent',
+      language: 'english',
+      purchase_type: 'all',
+    });
+    const res = await fetch(url);
+    const json = await res.json();
+    return {
+      reviews: (json.reviews || []).map(r => ({
+        review: r.review || '',
+        voted_up: r.voted_up !== false,
+        playtime_hours: Math.round(((r.author && r.author.playtime_forever) || 0) / 60 * 10) / 10,
+        author_name: (r.author && r.author.personaname) || 'Anonymous',
+      })),
+    };
+  }
+
   // Game state
   let games = [];
   let current = 0;
   let liked = JSON.parse(localStorage.getItem('gametinder_liked') || '[]');
-  let skipped = 0;
   let nextPage = 0;
   let noMoreGames = false;
   let loadPromise = null;
   const seenAppids = new Set();
   const likedAppids = new Set(liked.map(g => g.appid));
+  const skippedAppids = new Set(JSON.parse(localStorage.getItem('gametinder_skipped') || '[]'));
 
   function saveLiked() {
     localStorage.setItem('gametinder_liked', JSON.stringify(liked));
+  }
+
+  function saveSkipped() {
+    localStorage.setItem('gametinder_skipped', JSON.stringify([...skippedAppids]));
+  }
+
+  function resetSkipped() {
+    if (!skippedAppids.size) return;
+    if (!confirm(`Clear ${skippedAppids.size} skipped games? They'll be eligible to show up again.`)) return;
+    skippedAppids.clear();
+    saveSkipped();
+    updateScoreboard();
   }
 
   function getRating(pos, neg) {
@@ -859,9 +954,11 @@
       <div class="card-body">
         <div class="btn-row">
           <button class="btn-detail" onclick="loadDetails(${game.appid})">+ More details</button>
+          <button class="btn-detail" onclick="loadReviews(${game.appid})">★ Reviews</button>
           <a class="btn-detail btn-steam" href="https://store.steampowered.com/app/${game.appid}" target="_blank" rel="noopener noreferrer">Steam page ↗</a>
         </div>
         <div class="detail-box" id="detail-${game.appid}" style="display:none"></div>
+        <div class="review-box" id="reviews-${game.appid}" style="display:none"></div>
         <div class="game-name">${game.name}</div>
         <div class="game-dev">${game.developer || 'Unknown dev'}</div>
         <div class="game-meta">
@@ -908,6 +1005,50 @@
       `;
     } catch (e) {
       box.textContent = 'Failed to load details.';
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  const reviewDataCache = {};
+
+  async function loadReviews(appid) {
+    const box = document.getElementById('reviews-' + appid);
+    if (!box) return;
+
+    if (box.style.display === 'block') {
+      box.style.display = 'none';
+      return;
+    }
+
+    box.style.display = 'block';
+    box.textContent = 'Loading...';
+    try {
+      let data = reviewDataCache[appid];
+      if (!data) {
+        data = await fetchGameReviews(appid);
+        reviewDataCache[appid] = data;
+      }
+      if (!data.reviews || !data.reviews.length) {
+        box.innerHTML = '<div class="review-text">No reviews available.</div>';
+        return;
+      }
+      box.innerHTML = data.reviews.map(r => `
+        <div class="review-item">
+          <div class="review-meta">
+            <span class="review-author">${escapeHtml(r.author_name)}</span>
+            <span class="review-vote ${r.voted_up ? 'up' : 'down'}">${r.voted_up ? '👍 Recommended' : '👎 Not recommended'}</span>
+          </div>
+          <div class="review-playtime">${r.playtime_hours} hrs played</div>
+          <div class="review-text">${escapeHtml(r.review) || '(no written review)'}</div>
+        </div>
+      `).join('');
+    } catch (e) {
+      box.textContent = 'Failed to load reviews.';
     }
   }
 
@@ -970,7 +1111,7 @@
   function updateScoreboard() {
     document.getElementById('liked-count').textContent = liked.length;
     document.getElementById('liked-count-2').textContent = liked.length + ' games';
-    document.getElementById('skipped-count').textContent = skipped;
+    document.getElementById('skipped-count').textContent = skippedAppids.size;
     document.getElementById('remaining-count').textContent = Math.max(0, games.length - current);
   }
 
@@ -1063,7 +1204,8 @@
       saveLiked();
     } else {
       card.classList.add('fly-left');
-      skipped++;
+      skippedAppids.add(games[current].appid);
+      saveSkipped();
     }
 
     current++;
@@ -1097,7 +1239,7 @@
         return;
       }
 
-      const fresh = batch.filter(g => g.appid && !seenAppids.has(g.appid) && !likedAppids.has(g.appid));
+      const fresh = batch.filter(g => g.appid && !seenAppids.has(g.appid) && !likedAppids.has(g.appid) && !skippedAppids.has(g.appid));
       fresh.forEach(g => seenAppids.add(g.appid));
       games = games.concat(fresh);
     })().finally(() => { loadPromise = null; });
